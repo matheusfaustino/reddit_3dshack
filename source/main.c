@@ -7,7 +7,19 @@
 
 #include <3ds.h>
 
-Result http_download(const char *url)
+#define URL_REDDIT_3DSHACK "https://www.reddit.com/r/3dshacks.json"
+
+typedef struct reddit_post {
+    char *title;
+    char *id;
+} reddit_post;
+
+typedef struct reddit_list{
+    struct reddit_post post;
+    struct reddit_post *next;
+} reddit_list;
+
+cJSON* http_download_json(const char *url)
 {
 	Result ret=0;
 	httpcContext context;
@@ -132,11 +144,11 @@ Result http_download(const char *url)
 	// printf("downloaded size: %" PRId32 "\n",size);
 
     cJSON *root = cJSON_Parse(buf);
-    cJSON *kind = cJSON_GetObjectItemCaseSensitive(root, "kind");
+    // cJSON *kind = cJSON_GetObjectItemCaseSensitive(root, "kind");
 
-    printf("value Kind: \n%s\n", kind->valuestring);
+    // printf("value Kind: \n%s\n", kind->valuestring);
 
-	if(size>(240*400*3*2))size = 240*400*3*2;
+	// if(size>(240*400*3*2))size = 240*400*3*2;
 
 	// framebuf_top = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
 	// memcpy(framebuf_top, buf, size);
@@ -155,19 +167,53 @@ Result http_download(const char *url)
 	free(buf);
 	if (newurl!=NULL) free(newurl);
 
-	return 0;
+    return root;
+	// return 0;
+}
+
+reddit_list parse_list(cJSON *root)
+{
+    cJSON *data = cJSON_GetObjectItem(root, "data");
+    cJSON *children = cJSON_GetObjectItem(data, "children");
+    cJSON *elem = NULL;
+    cJSON *elem_data = NULL;
+    cJSON *elem_data_title = NULL;
+
+    reddit_list *lists = malloc(sizeof(reddit_list));
+    reddit_list *lists_aux = malloc(sizeof(reddit_list));
+    reddit_post *post = malloc(sizeof(reddit_post));
+    reddit_post *last_post = NULL;
+
+    // @todo: fazer lista encadead (esqueci)
+    cJSON_ArrayForEach(elem, children) {
+
+        elem_data = cJSON_GetObjectItem(elem, "data");
+        elem_data_title = cJSON_GetObjectItem(elem_data, "title");
+
+        post->title = cJSON_GetObjectItem(elem_data, "title")->valuestring;
+        post->id = cJSON_GetObjectItem(elem_data, "id")->valuestring;
+
+        // lists_aux->post = post;
+        // lists_aux->next = lists_aux;
+
+        printf("\nTitle (%s): %s\n", post->id, post->title);
+    }
+
+    free(post);
 }
 
 int main()
 {
-	Result ret=0;
+	// Result ret=0;
 	gfxInitDefault();
 	httpcInit(0); // Buffer size when POST/PUT.
 
-	consoleInit(GFX_BOTTOM,NULL);
+	consoleInit(GFX_BOTTOM, NULL);
 
     // ret=http_download("http://devkitpro.org/misc/httpexample_rawimg.rgb");
-	ret=http_download("https://www.reddit.com/r/3dshacks.json");
+	cJSON *root = http_download_json(URL_REDDIT_3DSHACK);
+    reddit_list lists = parse_list(root);
+
 	// Try the following for redirection to the above URL.
 	// ret=http_download("http://tinyurl.com/hd8jwqx");
 	// printf("return from http_download: %" PRId32 "\n",ret);
@@ -181,9 +227,8 @@ int main()
 		// Your code goes here
 
 		u32 kDown = hidKeysDown();
-		if (kDown & KEY_START)
+		if (kDown & KEY_B)
 			break; // break in order to return to hbmenu
-
 	}
 
 	// Exit services
