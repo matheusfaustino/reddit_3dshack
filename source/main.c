@@ -3,237 +3,55 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "cJSON.h"
-
 #include <3ds.h>
 
-#define URL_REDDIT_3DSHACK "https://www.reddit.com/r/3dshacks.json"
-
-typedef struct reddit_post {
-    char *title;
-    char *id;
-} reddit_post;
-
-typedef struct reddit_list{
-    struct reddit_post post;
-    struct reddit_post *next;
-} reddit_list;
-
-cJSON* http_download_json(const char *url)
-{
-	Result ret=0;
-	httpcContext context;
-	char *newurl=NULL;
-	u8* framebuf_top;
-	u32 statuscode=0;
-	u32 contentsize=0, readsize=0, size=0;
-	u8 *buf, *lastbuf;
-
-    // printf("Downloading %s\n",url);
-	printf("Loading %s\n",url);
-
-	do {
-		ret = httpcOpenContext(&context, HTTPC_METHOD_GET, url, 1);
-		// printf("return from httpcOpenContext: %" PRId32 "\n",ret);
-
-		// This disables SSL cert verification, so https:// will be usable
-		ret = httpcSetSSLOpt(&context, SSLCOPT_DisableVerify);
-		// printf("return from httpcSetSSLOpt: %" PRId32 "\n",ret);
-
-		// Enable Keep-Alive connections
-		ret = httpcSetKeepAlive(&context, HTTPC_KEEPALIVE_ENABLED);
-		// printf("return from httpcSetKeepAlive: %" PRId32 "\n",ret);
-
-		// Set a User-Agent header so websites can identify your application
-		ret = httpcAddRequestHeaderField(&context, "User-Agent", "httpc-example/1.0.0");
-		// printf("return from httpcAddRequestHeaderField: %" PRId32 "\n",ret);
-
-		// Tell the server we can support Keep-Alive connections.
-		// This will delay connection teardown momentarily (typically 5s)
-		// in case there is another request made to the same server.
-		ret = httpcAddRequestHeaderField(&context, "Connection", "Keep-Alive");
-		// printf("return from httpcAddRequestHeaderField: %" PRId32 "\n",ret);
-
-		ret = httpcBeginRequest(&context);
-		if(ret!=0){
-			httpcCloseContext(&context);
-			if(newurl!=NULL) free(newurl);
-			return ret;
-		}
-
-		ret = httpcGetResponseStatusCode(&context, &statuscode);
-		if(ret!=0){
-			httpcCloseContext(&context);
-			if(newurl!=NULL) free(newurl);
-			return ret;
-		}
-
-		if ((statuscode >= 301 && statuscode <= 303) || (statuscode >= 307 && statuscode <= 308)) {
-			if(newurl==NULL) newurl = (char*)malloc(0x1000); // One 4K page for new URL
-			if (newurl==NULL){
-				httpcCloseContext(&context);
-				return -1;
-			}
-			ret = httpcGetResponseHeader(&context, "Location", newurl, 0x1000);
-			url = newurl; // Change pointer to the url that we just learned
-			// printf("redirecting to url: %s\n",url);
-			httpcCloseContext(&context); // Close this context before we try the next
-		}
-	} while ((statuscode >= 301 && statuscode <= 303) || (statuscode >= 307 && statuscode <= 308));
-
-	if(statuscode!=200){
-		printf("URL returned status: %" PRId32 "\n", statuscode);
-		httpcCloseContext(&context);
-		if(newurl!=NULL) free(newurl);
-		return -2;
-	} else {
-        printf("[x] Status 200");
-    }
-
-	// This relies on an optional Content-Length header and may be 0
-	ret=httpcGetDownloadSizeState(&context, NULL, &contentsize);
-	if(ret!=0){
-		httpcCloseContext(&context);
-		if(newurl!=NULL) free(newurl);
-		return ret;
-	}
-
-	// printf("reported size: %" PRId32 "\n",contentsize);
-
-	// Start with a single page buffer
-	buf = (u8*)malloc(0x1000);
-	if(buf==NULL){
-		httpcCloseContext(&context);
-		if(newurl!=NULL) free(newurl);
-		return -1;
-	}
-
-	do {
-		// This download loop resizes the buffer as data is read.
-		ret = httpcDownloadData(&context, buf+size, 0x1000, &readsize);
-		size += readsize;
-		if (ret == (s32)HTTPC_RESULTCODE_DOWNLOADPENDING){
-				lastbuf = buf; // Save the old pointer, in case realloc() fails.
-				buf = (u8*)realloc(buf, size + 0x1000);
-				if(buf==NULL){
-					httpcCloseContext(&context);
-					free(lastbuf);
-					if(newurl!=NULL) free(newurl);
-					return -1;
-				}
-			}
-	} while (ret == (s32)HTTPC_RESULTCODE_DOWNLOADPENDING);
-
-	if(ret!=0){
-		httpcCloseContext(&context);
-		if(newurl!=NULL) free(newurl);
-		free(buf);
-		return -1;
-	}
-
-	// Resize the buffer back down to our actual final size
-	lastbuf = buf;
-	buf = (u8*)realloc(buf, size);
-	if(buf==NULL){ // realloc() failed.
-		httpcCloseContext(&context);
-		free(lastbuf);
-		if(newurl!=NULL) free(newurl);
-		return -1;
-	}
-
-	// printf("downloaded size: %" PRId32 "\n",size);
-
-    cJSON *root = cJSON_Parse(buf);
-    // cJSON *kind = cJSON_GetObjectItemCaseSensitive(root, "kind");
-
-    // printf("value Kind: \n%s\n", kind->valuestring);
-
-	// if(size>(240*400*3*2))size = 240*400*3*2;
-
-	// framebuf_top = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
-	// memcpy(framebuf_top, buf, size);
-
-	// gfxFlushBuffers();
-	// gfxSwapBuffers();
-
-	// framebuf_top = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
-	// memcpy(framebuf_top, buf, size);
-
-	gfxFlushBuffers();
-	gfxSwapBuffers();
-	gspWaitForVBlank();
-
-	httpcCloseContext(&context);
-	free(buf);
-	if (newurl!=NULL) free(newurl);
-
-    return root;
-	// return 0;
-}
-
-reddit_list parse_list(cJSON *root)
-{
-    cJSON *data = cJSON_GetObjectItem(root, "data");
-    cJSON *children = cJSON_GetObjectItem(data, "children");
-    cJSON *elem = NULL;
-    cJSON *elem_data = NULL;
-    cJSON *elem_data_title = NULL;
-
-    reddit_list *lists = malloc(sizeof(reddit_list));
-    reddit_list *lists_aux = malloc(sizeof(reddit_list));
-    reddit_post *post = malloc(sizeof(reddit_post));
-    reddit_post *last_post = NULL;
-
-    // @todo: fazer lista encadead (esqueci)
-    cJSON_ArrayForEach(elem, children) {
-
-        elem_data = cJSON_GetObjectItem(elem, "data");
-        elem_data_title = cJSON_GetObjectItem(elem_data, "title");
-
-        post->title = cJSON_GetObjectItem(elem_data, "title")->valuestring;
-        post->id = cJSON_GetObjectItem(elem_data, "id")->valuestring;
-
-        // lists_aux->post = post;
-        // lists_aux->next = lists_aux;
-
-        printf("\nTitle (%s): %s\n", post->id, post->title);
-    }
-
-    free(post);
-}
+#include "cJSON.h"
+#include "request.h"
+#include "reddit.h"
 
 int main()
 {
-	// Result ret=0;
-	gfxInitDefault();
-	httpcInit(0); // Buffer size when POST/PUT.
+    gfxInitDefault();
+    httpcInit(0); // Buffer size when POST/PUT.
 
-	consoleInit(GFX_BOTTOM, NULL);
+    //Initialize console on top screen. Using NULL as the second argument tells the console library to use the internal console structure as current one
+    consoleInit(GFX_TOP, NULL);
 
-    // ret=http_download("http://devkitpro.org/misc/httpexample_rawimg.rgb");
-	cJSON *root = http_download_json(URL_REDDIT_3DSHACK);
-    reddit_list lists = parse_list(root);
+    cJSON *root = http_download_json(URL_REDDIT_3DSHACK);
+    reddit_list *list = handle_initial_list(root);
+    reddit_list *list_aux = NULL;
 
-	// Try the following for redirection to the above URL.
-	// ret=http_download("http://tinyurl.com/hd8jwqx");
-	// printf("return from http_download: %" PRId32 "\n",ret);
+    list_aux = list;
+    while (list_aux != NULL) {
+        printf("\nTitle (%s): %s\n", list_aux->post.id, list_aux->post.title);
+        list_aux = list_aux->next;
+    }
 
-	// Main loop
-	while (aptMainLoop())
-	{
-		gspWaitForVBlank();
-		hidScanInput();
 
-		// Your code goes here
+    // Main loop
+    while (aptMainLoop()) {
 
-		u32 kDown = hidKeysDown();
-		if (kDown & KEY_B)
-			break; // break in order to return to hbmenu
-	}
+        //Scan all the inputs. This should be done once for each frame
+        hidScanInput();
 
-	// Exit services
-	httpcExit();
-	gfxExit();
-	return 0;
+        u32 kDown = hidKeysDown();
+        if (kDown & KEY_B)
+            break; // break in order to return to hbmenu
+
+        // code here
+        // ---
+
+        // Flush and swap framebuffers
+        gfxFlushBuffers();
+        gfxSwapBuffers();
+
+        //Wait for VBlank
+        gspWaitForVBlank();
+    }
+
+    // Exit services
+    httpcExit();
+    gfxExit();
+    return 0;
 }
 
