@@ -8,6 +8,7 @@
 #include "cJSON.h"
 #include "request.h"
 #include "reddit.h"
+#include "display.h"
 
 int main()
 {
@@ -19,14 +20,9 @@ int main()
 
     cJSON *root = http_download_json(URL_REDDIT_3DSHACK);
     reddit_list *list = handle_initial_list(root);
-    reddit_list *list_aux = NULL;
 
-    list_aux = list;
-    while (list_aux != NULL) {
-        printf("\nTitle (%s): %s\n", list_aux->post.id, list_aux->post.title);
-        list_aux = list_aux->next;
-    }
-
+    consoleClear();
+    show_list(list);
 
     // Main loop
     while (aptMainLoop()) {
@@ -37,6 +33,22 @@ int main()
         u32 kDown = hidKeysDown();
         if (kDown & KEY_B)
             break; // break in order to return to hbmenu
+
+        if (kDown & KEY_DDOWN) {
+            //Clear console
+            consoleClear();
+
+            selection("DOWN");
+            show_list(list);
+        }
+
+        if (kDown & KEY_DUP) {
+            //Clear console
+            consoleClear();
+
+            selection("UP");
+            show_list(list);
+        }
 
         // code here
         // ---
