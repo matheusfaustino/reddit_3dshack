@@ -23,6 +23,7 @@ reddit_list* handle_initial_list(cJSON *root)
         post = (reddit_post*) malloc(sizeof(reddit_post));
         post->title = cJSON_GetObjectItem(elem_data, "title")->valuestring;
         post->id = cJSON_GetObjectItem(elem_data, "id")->valuestring;
+        post->desc = cJSON_GetObjectItem(elem_data, "selftext")->valuestring;
 
         current->post = *post;
         current->next = NULL;
@@ -43,4 +44,3 @@ reddit_list* handle_initial_list(cJSON *root)
 
     return head;
 }
-

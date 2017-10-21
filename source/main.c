@@ -16,12 +16,13 @@ int main()
     httpcInit(0); // Buffer size when POST/PUT.
 
     //Initialize console on top screen. Using NULL as the second argument tells the console library to use the internal console structure as current one
-    consoleInit(GFX_TOP, NULL);
+    // consoleInit(GFX_TOP, NULL);
+
+    display_init();
 
     cJSON *root = http_download_json(URL_REDDIT_3DSHACK);
     reddit_list *list = handle_initial_list(root);
 
-    consoleClear();
     show_list(list);
 
     // Main loop
@@ -35,19 +36,17 @@ int main()
             break; // break in order to return to hbmenu
 
         if (kDown & KEY_DDOWN) {
-            //Clear console
-            consoleClear();
-
             selection("DOWN");
             show_list(list);
         }
 
         if (kDown & KEY_DUP) {
-            //Clear console
-            consoleClear();
-
             selection("UP");
             show_list(list);
+        }
+
+        if (kDown & KEY_A) {
+            print_desc_post(list);
         }
 
         // code here

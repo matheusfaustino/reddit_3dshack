@@ -16,6 +16,8 @@ typedef struct reddit_post
 {
     char *title;
     char *id;
+    char *desc;
+
 } reddit_post;
 
 typedef struct reddit_list
