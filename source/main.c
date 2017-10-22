@@ -24,6 +24,7 @@ int main()
     reddit_list *list = handle_initial_list(root);
 
     show_list(list);
+    print_actions();
 
     // Main loop
     while (aptMainLoop()) {
@@ -43,6 +44,16 @@ int main()
         if (kDown & KEY_DUP) {
             selection("UP");
             show_list(list);
+        }
+
+        if (kDown & KEY_DLEFT) {
+            selection("LEFT");
+            print_desc_post(list);
+        }
+
+        if (kDown & KEY_DRIGHT) {
+            selection("RIGHT");
+            print_desc_post(list);
         }
 
         if (kDown & KEY_A) {
