@@ -4,6 +4,7 @@ int item_selected = -1;
 int total_items = 0;
 
 int line_show = 0;
+// int page_post = 0;
 
 void display_init()
 {
@@ -25,13 +26,22 @@ void show_list(reddit_list *head)
     consoleClear();
 
     int count = 0;
+    int count_all = 0;
+    int page = item_selected / MAX_DISPLAY_ITEMS;
     reddit_list *list_aux = head;
 
-    printf("Selected Item: %d\n", item_selected);
+    printf("\x1b[1mThe 3DS Hacks Subreddit\n");
+    // printf("Selected Item: %d\n", item_selected);
     while (list_aux != NULL && count < MAX_DISPLAY_ITEMS) {
-        count++;
+        count_all++;
 
-        print_item(list_aux->post, count);
+        // show items based on the page
+        if (page * count_all >= page * MAX_DISPLAY_ITEMS) {
+            count++;
+
+            // print_item(list_aux->post, count);
+            print_item(list_aux->post, count_all);
+        }
 
         list_aux = list_aux->next;
     }
@@ -40,8 +50,8 @@ void show_list(reddit_list *head)
 void selection(const char *action)
 {
     if (strcmp(action, "DOWN") == 0) {
-        if (item_selected < MAX_DISPLAY_ITEMS)
-            item_selected++;
+        // if (item_selected < MAX_DISPLAY_ITEMS)
+        item_selected++;
 
         line_show = 0;
     }
@@ -52,6 +62,7 @@ void selection(const char *action)
         line_show = 0;
     }
     else if (strcmp(action, "LEFT") == 0) {
+        // @task: bug quando nao tem nada selecionado, item_selected = 0
         line_show--;
     }
     else if (strcmp(action, "RIGHT") == 0) {
@@ -62,9 +73,9 @@ void selection(const char *action)
 void print_item(reddit_post post, int post_index)
 {
     if (post_index == item_selected)
-        printf("\n%sTitle (%s): %s %s\n", COLOR_GREEN, post.id, post.title, COLOR_RESET);
+        printf("\n%s- %s %s\n", COLOR_GREEN, post.title, COLOR_RESET);
     else
-        printf("\nTitle (%s): %s\n", post.id, post.title);
+        printf("\n- %s\n", post.title);
 }
 
 void print_desc_post(reddit_list *head)
@@ -92,7 +103,7 @@ void print_actions()
     consoleClear();
 
     printf("----------------------------------\n");
-    printf("B-Exit | A-Select | DPad-Move \n");
+    printf(" B-Exit | A-Select | DPad-Move \n");
     printf("----------------------------------\n");
 }
 

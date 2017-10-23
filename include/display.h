@@ -9,7 +9,7 @@
 #include "reddit.h"
 #include "string_utils.h"
 
-#define MAX_DISPLAY_ITEMS 8
+#define MAX_DISPLAY_ITEMS 9
 #define TEXT_LIMIT_DESC 400
 #define MAX_CHAR_PER_LINE 36
 
@@ -21,6 +21,7 @@
 int item_selected;
 int total_items;
 int line_show;
+int page_post;
 
 // reference to each screen
 PrintConsole topScreen, downScreen;
